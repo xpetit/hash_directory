@@ -1,4 +1,4 @@
-module hash_directory
+module github.com/xpetit/hash_directory
 
 go 1.22
 
