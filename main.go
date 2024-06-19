@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -20,12 +21,16 @@ import (
 func main() {
 	workers := flag.Int("w", runtime.NumCPU(), "Number of disk workers")
 	flag.Parse()
-	Assert(flag.NArg() == 1, "expected argument: DIRECTORY")
+	Assert(flag.NArg() >= 1, "expected argument: DIRECTORY")
 
 	t := time.Now()
 	var m sync.Mutex
 	hashByPath := map[string][]byte{}
 	var n atomic.Int64
+	var r *regexp.Regexp
+	if flag.NArg() > 1 {
+		r = Must(regexp.Compile(flag.Arg(1)))
+	}
 	{
 		pathsC := make(chan string, 1000)
 		wait := Goroutines(*workers, func(int) {
@@ -40,7 +45,12 @@ func main() {
 		})
 		Check(filepath.WalkDir(flag.Arg(0), func(path string, d fs.DirEntry, err error) error {
 			Check(err)
-			if d.Type().IsRegular() {
+			if r != nil && r.MatchString(path) {
+				if d.IsDir() {
+					return fs.SkipDir
+				}
+				return nil
+			} else if d.Type().IsRegular() {
 				pathsC <- path
 			}
 			return nil
