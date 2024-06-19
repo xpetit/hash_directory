@@ -21,15 +21,15 @@ import (
 func main() {
 	workers := flag.Int("w", runtime.NumCPU(), "Number of disk workers")
 	flag.Parse()
-	Assert(flag.NArg() >= 1, "expected argument: DIRECTORY")
+	Assert(flag.NArg() >= 1, "expected argument: DIRECTORY [EXCLUDE_REGEX]")
 
 	t := time.Now()
 	var m sync.Mutex
 	hashByPath := map[string][]byte{}
 	var n atomic.Int64
-	var r *regexp.Regexp
+	var exclude *regexp.Regexp
 	if flag.NArg() > 1 {
-		r = Must(regexp.Compile(flag.Arg(1)))
+		exclude = Must(regexp.Compile(flag.Arg(1)))
 	}
 	{
 		pathsC := make(chan string, 1000)
@@ -45,7 +45,7 @@ func main() {
 		})
 		Check(filepath.WalkDir(flag.Arg(0), func(path string, d fs.DirEntry, err error) error {
 			Check(err)
-			if r != nil && r.MatchString(path) {
+			if exclude != nil && exclude.MatchString(path) {
 				if d.IsDir() {
 					return fs.SkipDir
 				}
